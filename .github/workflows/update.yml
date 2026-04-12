@@ -1,0 +1,71 @@
+name: Multi_Site_IP_Update
+
+on:
+  schedule:
+    # 按照你要求的多时间段触发 (北京时间 05:30, 06:00, 06:30, 07:00)
+    - cron: '30 21 * * *'
+    - cron: '0 22 * * *'
+    - cron: '30 22 * * *'
+    - cron: '0 23 * * *'
+  workflow_dispatch: # 允许手动运行
+
+permissions:
+  contents: write
+
+jobs:
+  run_scrapers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 检出代码
+        uses: actions/checkout@v4
+
+      - name: 2. 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 3. 缓存浏览器
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: 4. 安装依赖
+        run: |
+          npm install playwright
+          npx playwright install chromium --with-deps
+
+      - name: 5. 依次运行脚本并合并结果
+        run: |
+          # 创建或清空临时文件
+          echo "" > temp_ips.txt
+          
+          echo "正在运行 uouin.js..."
+          node scrapers/uouin.js >> temp_ips.txt || echo "uouin 运行失败"
+          
+          echo "正在运行 v2too.js..."
+          node scrapers/v2too.js >> temp_ips.txt || echo "v2too 运行失败"
+          
+          # 去除空行、排序、去重，生成最终的 ips.txt
+          grep -v '^$' temp_ips.txt | sort -u > ips.txt
+          
+          echo "合并完成，预览结果："
+          cat ips.txt
+
+      - name: 6. 将结果推送到仓库
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          
+          export TZ='Asia/Shanghai'
+          CUR_TIME=$(date +'%Y-%m-%d %H:%M:%S')
+          
+          git add ips.txt
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "自动更新聚合IP: $CUR_TIME"
+            git push
+          else
+            echo "IP 数据未变动，跳过推送。"
+          fi
