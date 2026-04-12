@@ -9,20 +9,21 @@ const fs = require('fs');
   const page = await context.newPage();
   
   try {
-    // 使用 console.error，这样信息会留在日志里，而不会混进结果文件
-    console.error('正在打开网页...');
-    // 1. 将策略改为 'domcontentloaded' (只要基础结构出来就行，不理会那些慢悠悠的广告脚本)
-    // 2. 将超时时间手动延长到 60 秒
+    console.error('正在打开 uouin 网页...');
+    // 改为 load，确保基础资源加载完毕
     await page.goto('https://api.uouin.com/cloudflare.html', { 
-    waitUntil: 'domcontentloaded', 
-    timeout: 60000 
+      waitUntil: 'load', 
+      timeout: 60000 
     });
     
-    console.error('正在等待数据加载 (20秒)...');
-    await page.waitForTimeout(20000); 
+    console.error('正在等待数据渲染 (25秒)...');
+    await page.waitForTimeout(25000); 
 
     const finalIps = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll('tr'));
+      // 调试信息：看看一共找到了多少行
+      console.error('总行数:', rows.length);
+
       let dxResult = null;
       let ipv6Result = null;
       const currentYear = new Date().getFullYear().toString();
@@ -33,22 +34,24 @@ const fs = require('fs');
 
       for (const row of rows) {
         const rowText = row.innerText;
-        if (!rowText.includes(currentYear)) continue;
-        const upperText = rowText.toUpperCase();
+        // 如果这行包含今年年份，说明是真实数据
+        if (rowText.includes(currentYear)) {
+          const upperText = rowText.toUpperCase();
 
-        if (!dxResult && upperText.includes('电信')) {
-          const ipMatch = rowText.match(ipv4Regex);
-          const speedMatch = rowText.match(speedRegex);
-          if (ipMatch && speedMatch) {
-            dxResult = `${ipMatch[0]}#uin-电信-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
+          if (!dxResult && upperText.includes('电信')) {
+            const ipMatch = rowText.match(ipv4Regex);
+            const speedMatch = rowText.match(speedRegex);
+            if (ipMatch && speedMatch) {
+              dxResult = `${ipMatch[0]}#uin-电信-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
+            }
           }
-        }
 
-        if (!ipv6Result && upperText.includes('IPV6')) {
-          const ipMatch = rowText.match(ipv6Regex);
-          const speedMatch = rowText.match(speedRegex);
-          if (ipMatch && speedMatch) {
-            ipv6Result = `${ipMatch[0]}#uin-IPV6-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
+          if (!ipv6Result && upperText.includes('IPV6')) {
+            const ipMatch = rowText.match(ipv6Regex);
+            const speedMatch = rowText.match(speedRegex);
+            if (ipMatch && speedMatch) {
+              ipv6Result = `${ipMatch[0]}#uin-IPV6-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
+            }
           }
         }
         if (dxResult && ipv6Result) break;
@@ -57,7 +60,6 @@ const fs = require('fs');
     });
 
     if (finalIps.length > 0) {
-      // 只有这里用 console.log，它是真正要存入文件的数据
       console.log(finalIps.join('\n')); 
     } else {
       console.error('❌ 未能在数据行中匹配到目标。');
