@@ -11,7 +11,12 @@ const fs = require('fs');
   try {
     // 使用 console.error，这样信息会留在日志里，而不会混进结果文件
     console.error('正在打开网页...');
-    await page.goto('https://api.uouin.com/cloudflare.html', { waitUntil: 'networkidle' });
+    // 1. 将策略改为 'domcontentloaded' (只要基础结构出来就行，不理会那些慢悠悠的广告脚本)
+    // 2. 将超时时间手动延长到 60 秒
+    await page.goto('https://api.uouin.com/cloudflare.html', { 
+    waitUntil: 'domcontentloaded', 
+    timeout: 60000 
+    });
     
     console.error('正在等待数据加载 (20秒)...');
     await page.waitForTimeout(20000); 
