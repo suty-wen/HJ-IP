@@ -9,51 +9,49 @@ const { chromium } = require('playwright');
   
   try {
     console.error('正在打开 v2too 网页...');
-    await page.goto('https://ip.v2too.top/', { waitUntil: 'networkidle' });
+    // 页面结构简单，使用 load 即可
+    await page.goto('https://ip.v2too.top/', { waitUntil: 'load', timeout: 60000 });
     
-    // 等待核心数据容器加载（根据该站特征，等待 card 元素出现）
-    await page.waitForSelector('.region', { timeout: 10000 }).catch(() => console.error('等待超时，尝试继续解析'));
+    console.error('正在等待数据渲染 (10秒)...');
+    // 给页面一点时间完成内部加载
+    await page.waitForTimeout(10000);
 
     const finalIps = await page.evaluate(() => {
-      // 获取所有的 IP 卡片/行容器
-      // 通常这类站点的结构是每一个 IP 都在一个包含 region 和 speed 的 div 块里
-      // 我们通过寻找包含 region 类的父级来定位
-      const cards = Array.from(document.querySelectorAll('.item, .card, div:has(> .region)'));
+      // 获取所有的行（无论它是 tr 还是 div 构成的行）
+      const rows = Array.from(document.querySelectorAll('tr, .list-item, .card, div[style*="flex"]'));
       
       let tokyoResult = null;
       let singaporeResult = null;
 
-      // 这里的选择器：寻找所有包含数据的行
-      // 如果没有明确的卡片类名，我们直接找所有的 region 元素，然后向上找父级
-      const regions = Array.from(document.querySelectorAll('.region'));
+      // 正则规则
+      const ipRegex = /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/;
+      const speedRegex = /[\d\.]+\s*(?:MB\/s|Mb\/s|mb\/s)/i;
 
-      for (const regEl of regions) {
-        const regionText = regEl.innerText.trim();
-        const parent = regEl.parentElement; // 假设 ip 和 speed 都在同一个父级下
-        
-        if (!parent) continue;
+      for (const row of rows) {
+        const text = row.innerText;
 
-        // 提取 IP (通常在 class 为 ip 的 div 里，或者直接是文本)
-        const ipEl = parent.querySelector('.ip') || parent.querySelector('.address');
-        // 提取速度
-        const speedEl = parent.querySelector('.speed');
-
-        if (!ipEl || !speedEl) continue;
-
-        const ip = ipEl.innerText.trim();
-        // 去除速度中的所有空格
-        const speed = speedEl.innerText.trim().replace(/\s/g, '');
-
-        // 1. 匹配东京的第一个
-        if (!tokyoResult && regionText.includes('东京')) {
-          tokyoResult = `${ip}#v2too-东京-${speed}`;
+        // 1. 寻找“东京”的第一行
+        if (!tokyoResult && text.includes('东京')) {
+          const ipMatch = text.match(ipRegex);
+          const speedMatch = text.match(speedRegex);
+          if (ipMatch && speedMatch) {
+            // 去除速度中的空格并标准化为 MB/s
+            const speed = speedMatch[0].toUpperCase().replace(/\s/g, '');
+            tokyoResult = `${ipMatch[0]}#v2too-东京-${speed}`;
+          }
         }
 
-        // 2. 匹配新加坡的第一个
-        if (!singaporeResult && regionText.includes('新加坡')) {
-          singaporeResult = `${ip}#v2too-新加坡-${speed}`;
+        // 2. 寻找“新加坡”的第一行
+        if (!singaporeResult && text.includes('新加坡')) {
+          const ipMatch = text.match(ipRegex);
+          const speedMatch = text.match(speedRegex);
+          if (ipMatch && speedMatch) {
+            const speed = speedMatch[0].toUpperCase().replace(/\s/g, '');
+            singaporeResult = `${ipMatch[0]}#v2too-新加坡-${speed}`;
+          }
         }
 
+        // 两个都找到了就提前结束
         if (tokyoResult && singaporeResult) break;
       }
 
@@ -61,10 +59,10 @@ const { chromium } = require('playwright');
     });
 
     if (finalIps.length > 0) {
-      // 最终结果输出到 log，用于合并到 temp_ips.txt
+      // 成功结果输出到标准输出，供 workflow 合并
       console.log(finalIps.join('\n'));
     } else {
-      console.error('❌ v2too 抓取失败：未找到东京或新加坡的 IP 数据');
+      console.error('❌ v2too 抓取失败：未在页面中识别到东京或新加坡的数据行');
     }
 
   } catch (error) {
