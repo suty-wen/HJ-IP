@@ -42,7 +42,7 @@ const fs = require('fs');
             const ipMatch = rowText.match(ipv4Regex);
             const speedMatch = rowText.match(speedRegex);
             if (ipMatch && speedMatch) {
-              dxResult = `${ipMatch[0]}#uin-电信-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
+              dxResult = `${ipMatch[0]}#uouin-电信-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
             }
           }
 
@@ -50,7 +50,7 @@ const fs = require('fs');
             const ipMatch = rowText.match(ipv6Regex);
             const speedMatch = rowText.match(speedRegex);
             if (ipMatch && speedMatch) {
-              ipv6Result = `${ipMatch[0]}#uin-IPV6-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
+              ipv6Result = `${ipMatch[0]}#uouin-IPV6-${speedMatch[0].toLowerCase().replace(/\s/g, '')}`;
             }
           }
         }
