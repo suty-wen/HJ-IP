@@ -1,2 +1,2 @@
-172.64.229.47#uouin-电信-61.00mb/s
-2a06:98c1:3103:9eaa:16e9:13db:41ec:ecd3#uouin-IPV6-37.73mb/s
+104.18.39.49#uouin-电信-72.10mb/s
+2a06:98c1:310b:af6d:60d4:c011:63d0:d895#uouin-IPV6-31.16mb/s
